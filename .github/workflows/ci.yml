@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Build (debug)
+        run: swift build
+      - name: Build (release)
+        run: swift build -c release
+      - name: Smoke (binary exists & is signed-runnable)
+        # Can't actually screen-record on a headless runner (no display / no
+        # Screen Recording TCC), but confirm the binary built and links.
+        run: |
+          test -x .build/release/windowcast
+          file .build/release/windowcast
+
+  lint:
+    name: SwiftFormat (advisory)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SwiftFormat
+        run: brew install swiftformat
+      - name: Lint
+        run: swiftformat --lint Sources
+        continue-on-error: true
